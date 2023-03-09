@@ -1,5 +1,7 @@
-const port = 3000
-const { response } = require('express')
+const cors = require('cors')
+
+const port = 3001
+const { response, request } = require('express')
 const uuid = require('uuid')
 const bodyParser = require('body-parser')
 
@@ -7,41 +9,46 @@ const express = require('express')
 
 const app = express()
 app.use(bodyParser.json())
+app.use(cors())
 
 
 const users = []
 
-const myFirstMiddlewares = (request, response, next) => {
-    console.log('Fui chamado')
+const checkUserId = (request, response, next) => {
+    const { id } = request.params
+
+    const index = users.findIndex(user => user.id === id)
+    if (index < 0) {
+        return response.status(404).json({ message: "User not found" })
+    }
+
+    request.userIndex = index
+    request.userId = id
+
+    next()
 }
 
-app.use(myFirstMiddlewares)
-
 app.get('/users', (request, response) => {
-   
+
     return response.json(users)
 })
 
 app.post('/users', (request, response) => {
     const { name, age } = request.body
 
-    const user = { id:uuid.v4(), name, age }
+    const user = { id: uuid.v4(), name, age }
 
     users.push(user)
 
     return response.status(201).json(user)
 })
 
-app.put('/users/:id', (request, response) => {
-    const { id } = request.params
-    const {name, age} = request.body
+app.put('/users/:id', checkUserId, (request, response) => {
+    const { name, age } = request.body
+    const index = request.userIndex
+    const id = request.userId
 
     const UpdateUser = { id, name, age }
-
-    const index = users.findIndex(user => user.id === id)
-    if (index < 0) {
-        return response.status(404).json({ message: "User not found"})
-    }
 
     users[index] = UpdateUser
     console.log(index)
@@ -49,13 +56,8 @@ app.put('/users/:id', (request, response) => {
     return response.json(UpdateUser)
 })
 
-app.delete('/users/:id', (request, response) => {
-    const { id } = request.params
-
-    const index = users.findIndex(user => user.id === id)
-     if (index < 0) {
-        return response.status(404).json({ message: "User not found"})
-    }
+app.delete('/users/:id', checkUserId, (request, response) => {
+    const index = request.userIndex
 
     users.splice(index, 1)
 
